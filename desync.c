@@ -9,9 +9,9 @@
     #include <sys/time.h>
     #include <sys/socket.h>
     #include <arpa/inet.h>
-    #include <netinet/tcp.h>
     
     #ifdef __linux__
+    #include <linux/tcp.h>
     #include <sys/mman.h>
     #include <sys/sendfile.h>
     #include <fcntl.h>
@@ -24,6 +24,8 @@
     #else
         #define memfd_create(name, flags) fileno(tmpfile())
     #endif
+    #else
+    #include <netinet/tcp.h>
     #endif
 #else
     #include <winsock2.h>
@@ -86,7 +88,7 @@ static inline void delay(long ms)
 void wait_send(int sfd)
 {
     for (int i = 0; params.wait_send && i < 500; i++) {
-        struct tcpi tcpi = {};
+        struct tcp_info tcpi = {};
         socklen_t ts = sizeof(tcpi);
         
         if (getsockopt(sfd, IPPROTO_TCP,
@@ -94,8 +96,8 @@ void wait_send(int sfd)
             uniperror("getsockopt TCP_INFO");
             break;
         }
-        if (tcpi.state != 1) {
-            LOG(LOG_E, "state: %d\n", tcpi.state);
+        if (tcpi.tcpi_state != 1) {
+            LOG(LOG_E, "state: %d\n", tcpi.tcpi_state);
             return;
         }
         if (ts < sizeof(tcpi)) {
@@ -103,7 +105,7 @@ void wait_send(int sfd)
             params.wait_send = 0;
             break;
         }
-        if (tcpi.notsent_bytes == 0) {
+        if (tcpi.tcpi_notsent_bytes == 0) {
             return;
         }
         LOG(LOG_S, "not sent after %d ms\n", i);

@@ -1,2 +1,6 @@
 .vscode
 ciadpi.exe
+ciadpi
+ciadpi.sh
+.gdbinit
+hosts.txt

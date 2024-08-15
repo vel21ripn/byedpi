@@ -59,6 +59,9 @@ struct params params = {
     .laddr = {
         .sin6_family = AF_INET
     },
+    .taddr = {
+        .sin6_family = AF_INET
+    },
     .debug = 0
 };
 
@@ -66,6 +69,9 @@ struct params params = {
 const char help_text[] = {
     "    -i, --ip, <ip>            Listening IP, default 0.0.0.0\n"
     "    -p, --port <num>          Listening port, default 1080\n"
+    #ifdef __linux__
+    "        --transparent-port <num>  Listening port for transparent mode\n"
+    #endif
     "    -c, --max-conn <count>    Connection count limit, default 512\n"
     "    -N, --no-domain           Deny domain resolving\n"
     "    -U, --no-udp              Deny UDP association\n"
@@ -154,6 +160,7 @@ const struct option options[] = {
     {"not-wait-send", 0, 0, 'W'}, //
     #ifdef __linux__
     {"protect-path",  1, 0, 'P'}, //
+    {"transparent-port",  1, 0, '\x80'}, //
     #endif
     {0}
 };
@@ -465,6 +472,11 @@ int main(int argc, char **argv)
             if (get_addr(optarg, 
                     (struct sockaddr_ina *)&params.laddr) < 0)
                 invalid = 1;
+#ifdef __linux__
+              else 
+		get_addr(optarg,
+                    (struct sockaddr_ina *)&params.taddr);
+#endif
             break;
             
         case 'p':
@@ -781,6 +793,13 @@ int main(int argc, char **argv)
         case 'P':
             params.protect_path = optarg;
             break;
+        case '\x80':
+            val = strtol(optarg, &end, 0);
+            if (val <= 0 || val > 0xffff || *end)
+                invalid = 1;
+            else
+                params.taddr.sin6_port = htons(val);
+            break;
         #endif
         case 0:
             break;
@@ -824,7 +843,8 @@ int main(int argc, char **argv)
         clear_params();
         return -1;
     }
-    int status = run((struct sockaddr_ina *)&params.laddr);
+
+    int status = run((struct sockaddr_ina *)&params.laddr,(struct sockaddr_ina *)&params.taddr);
     clear_params();
     return status;
 }
