@@ -8,6 +8,7 @@
 #include "proxy.h"
 #include "packets.h"
 #include "error.h"
+#include "gen_http_req.h"
 
 #ifndef _WIN32
     #include <arpa/inet.h>
@@ -37,6 +38,7 @@ fake_udp = {
     sizeof(udp_data), udp_data
 };
 
+char *tls_sni_name = NULL;
 
 struct params params = {
     .sfdelay = 3,
@@ -220,6 +222,7 @@ char *data_from_str(const char *str, ssize_t *size)
         return 0;
     }
     size_t i = parse_cform(d, len, str, len);
+    d[i] = '\0';
     
     char *m = len != i ? realloc(d, i) : 0;
     if (i == 0) {
@@ -480,6 +483,10 @@ void clear_params(void)
                 mem_destroy(s.hosts);
                 s.hosts = 0;
             }
+	    if (s.http_req != 0) {
+		    gen_http_free(s.http_req);
+		    s.http_req = NULL;
+	    }
         }
         free(params.dp);
         params.dp = 0;
@@ -789,6 +796,7 @@ int main(int argc, char **argv)
                 return -1;
             }
             printf("sni: %s\n", optarg);
+            tls_sni_name = strdup(optarg);
             break;
             
         case 'l':

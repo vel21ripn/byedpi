@@ -4,7 +4,7 @@ CPPFLAGS = -D_DEFAULT_SOURCE
 CFLAGS += -I. -std=c99 -Wall -Wno-unused -O2
 WIN_LDFLAGS = -lws2_32 -lmswsock
 
-SRC = packets.c main.c conev.c proxy.c desync.c mpool.c extend.c
+SRC = packets.c main.c conev.c proxy.c desync.c mpool.c extend.c gen_http_req.c
 WIN_SRC = win_service.c
 
 OBJ = $(SRC:.c=.o)
@@ -23,6 +23,9 @@ windows: $(OBJ) $(WIN_OBJ)
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+
+gen_http_req: gen_http_req.c gen_http_req.h
+	$(CC) -o $@ $(CPPFLAGS) -DTESTING -g -g3 -ggdb -O0  -I. -std=c99 -Wall -Wno-unused $<
 
 clean:
 	rm -f $(TARGET) $(TARGET).exe $(OBJ) $(WIN_OBJ)

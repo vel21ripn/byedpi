@@ -30,7 +30,9 @@
 #include "params.h"
 #include "packets.h"
 #include "error.h"
+#include "gen_http_req.h"
 
+extern char *tls_sni_name;
 
 int setttl(int fd, int ttl)
 {
@@ -121,12 +123,41 @@ void wait_send(int sfd)
 #define wait_send_if_support(sfd) // :(
 #endif
 
+static int check_http_gen(struct desync_params *opt,struct packet *pkt, long pos) {
+    const char *const data = opt->fake_data.data;
+    /* 
+     * gen_http_req:host=ya.ru;path=/
+     */
+    if(data[0] && !strncmp(data,"gen_http_req",12)) {
+        struct http_req_param *http;
+        if(!opt->http_req && !opt->http_req_bad) {
+            opt->http_req_bad = 1;
+            http = gen_http_init();
+            if(data[13] == ':' && data[14]) {
+                if(gen_http_parser(http,&data[14])) {
+                    opt->http_req = http;
+                    opt->http_req_bad = 0;
+                } else {
+                    gen_http_free(http);
+                }
+            }
+        }
+        if(opt->http_req && !opt->http_req_bad) {
+            pkt->data  = gen_http_req(opt->http_req,pos);
+            pkt->size = pos;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 #ifdef __linux__
 ssize_t send_fake(int sfd, char *buffer,
         int cnt, long pos, struct desync_params *opt)
 {
     struct sockaddr_in6 addr = {};
     socklen_t addr_size = sizeof(addr);
+
     if (opt->md5sig) {
         if (getpeername(sfd, 
                 (struct sockaddr *)&addr, &addr_size) < 0) {
@@ -137,6 +168,7 @@ ssize_t send_fake(int sfd, char *buffer,
     struct packet pkt;
     if (opt->fake_data.data) {
         pkt = opt->fake_data;
+	check_http_gen(opt,&pkt,pos);
     }
     else {
         pkt = cnt != IS_HTTP ? fake_tls : fake_http;
@@ -224,6 +256,7 @@ ssize_t send_fake(int sfd, char *buffer,
         }
         break;
     }
+
     if (p) munmap(p, pos);
     close(fds[0]);
     close(fds[1]);
@@ -240,6 +273,7 @@ ssize_t send_fake(int sfd, char *buffer,
     struct packet pkt;
     if (opt->fake_data.data) {
         pkt = opt->fake_data;
+	check_http_gen(opt,&pkt,pos);
     }
     else {
         pkt = cnt != IS_HTTP ? fake_tls : fake_http;

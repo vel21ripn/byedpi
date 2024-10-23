@@ -67,6 +67,8 @@ struct packet {
      char  *data;
 };
 
+struct http_req_param;
+
 struct desync_params {
     int ttl;
     char *ip_options;
@@ -93,6 +95,8 @@ struct desync_params {
     
     char *file_ptr;
     ssize_t file_size;
+    struct http_req_param *http_req;
+    int http_req_bad;
 };
 
 struct params {
